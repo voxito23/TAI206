@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Usuarios Simple</title>
+</head>
+<body>
+
+    <h2>Agregar Usuario</h2>
+    
+    <form action="/agregar" method="post">
+        <label>ID:</label>
+        <input type="number" name="id" required size="5">
+        
+        <label>Nombre:</label>
+        <input type="text" name="nombre" required>
+        
+        <label>Edad:</label>
+        <input type="number" name="edad" required size="5">
+        
+        <button type="submit">Agregar</button>
+    </form>
+
+    <br><hr><br>
+
+    <h2>Lista de Usuarios</h2>
+
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr style="background-color: #eee;"> <th>ID</th>
+                <th>Nombre</th>
+                <th>Edad</th>
+                <th>Acción</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for usuario in usuarios %}
+            <tr>
+                <td>{{ usuario.id }}</td>
+                <td>{{ usuario.nombre }}</td>
+                <td>{{ usuario.edad }}</td>
+                <td>
+                    <a href="/eliminar/{{ usuario.id }}" style="color: red;">Eliminar</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4">No hay usuarios registrados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>

@@ -2,6 +2,7 @@
 from typing import Optional
 from fastapi import FastAPI,status,HTTPException
 import asyncio
+from pydantic import BaseModel, Field
 
 #cd myAPI
 #uvicorn main:app --reload
@@ -18,6 +19,16 @@ usuarios=[
     {"id":3, "nombre":"Luis","edad":21},
 ]
 
+
+#Modelo de validacion Pydantic
+class UsuarioBase(BaseModel):
+    id: int = Field(..., gt=0,description="Identificador de usuario", example="1" )
+    nombre: str = Field(..., min_length=3, max_length=50, description="Nombre del usuario", example="Victor") 
+    edad: int = Field(..., ge=0, le=121, description="Edad validada entre 0 y 121", example="30")    
+    
+    
+    
+    
 # Endpoints
 @app.get("/", tags=['Inicio'])
 async def holamundo():
@@ -59,9 +70,9 @@ async def ConsultarUsuarios():
     }
     
 @app.post("/v1/usuarios/", tags=['CRUD usuarios'])
-async def agregar_usuarios(usuario: dict):
+async def agregar_usuarios(usuario:UsuarioBase):
     for usr in usuarios:
-        if usr["id"] == usuario.get("id"):
+        if usr["id"] == usuario.id:
             raise HTTPException(
                 status_code=400, 
                 detail="El ID ya existe"
