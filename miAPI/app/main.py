@@ -1,8 +1,11 @@
 # importaciones
 from typing import Optional
-from fastapi import FastAPI,status,HTTPException
+from fastapi import FastAPI,status,HTTPException,Depends #nueva
 import asyncio
 from pydantic import BaseModel, Field
+from fastapi.security import HTTPBasic, HTTPBasicCredentials #nueva
+import secrets #nueva
+
 
 #cd myAPI
 #uvicorn main:app --reload
@@ -27,7 +30,22 @@ class UsuarioBase(BaseModel):
     edad: int = Field(..., ge=0, le=121, description="Edad validada entre 0 y 121", example="30")    
     
     
+#seguridad basica HTTP nuevo
+security = HTTPBasic()
+def verificar_Peticion(credentials: HTTPBasicCredentials = Depends(security)):
+    usuarioAuth = secrets.compare_digest(credentials.username, "vichdz")
+    contraAuth = secrets.compare_digest(credentials.password, "1234")
     
+    if not (usuarioAuth and contraAuth):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales no válidas",
+        )
+    return credentials.username
+
+
+
+
     
 # Endpoints
 @app.get("/", tags=['Inicio'])
@@ -105,12 +123,12 @@ async def actualizar_usuarios(id: int, usuario_actualizado: dict):
         )
 
 @app.delete("/v1/usuarios/{id}", tags=['CRUD usuarios'])
-async def eliminar_usuarios(id: int):
+async def eliminar_usuario(id: int, usuarioAuth: str = Depends(verificar_Peticion)): #nuevo
     for index, usr in enumerate(usuarios):
         if usr["id"] == id:
             usuarios.pop(index)
             return {
-                "mensaje": "Usuario eliminado",
+                "mensaje": f"Usuario eliminado correctamente {usuarioAuth}", #nuevo
                 "id_eliminado": id
             }
             
