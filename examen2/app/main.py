@@ -9,15 +9,15 @@ import asyncio
 
 
 app = FastAPI(
-    title="API de Gestión de Citas Médicas",
+    title="API de Gestion de Citas Medicas",
     version="1.0"
 )
 citas = [
     {
         "id": 1,
-        "paciente": "Ana López",
-        "doctor": "Dr. Ramírez",
-        "especialidad": "Cardiología",
+        "paciente": "Ana Lopez",
+        "doctor": "Dr. Ramirez",
+        "especialidad": "Cardiologia",
         "fecha": "2026-03-15",
         "hora": "09:00",
         "motivo": "Chequeo general",
@@ -25,8 +25,8 @@ citas = [
     },
     {
         "id": 2,
-        "paciente": "Luis Pérez",
-        "doctor": "Dra. Martínez",
+        "paciente": "Luis Perez",
+        "doctor": "Dra. Martinez",
         "especialidad": "Dermatología",
         "fecha": "2026-03-16",
         "hora": "11:30",
@@ -39,7 +39,7 @@ security = HTTPBasic()
 
 
 def verificar_peticion(credentials: HTTPBasicCredentials = Depends(security)):
-    usuario_auth = secrets.compare_digest(credentials.username, "root")
+    usuario_auth = secrets.compare_digest(credentials.username, "vichdz")
     contra_auth = secrets.compare_digest(credentials.password, "1234")
 
     if not (usuario_auth and contra_auth):
@@ -52,14 +52,14 @@ def verificar_peticion(credentials: HTTPBasicCredentials = Depends(security)):
 
 
 class CitaBase(BaseModel):
-    id: int = Field(..., gt=0)
-    paciente: str = Field(..., min_length=2, max_length=100)
-    doctor: str = Field(..., min_length=2, max_length=100)
-    especialidad: str = Field(..., min_length=2, max_length=100)
-    fecha: str = Field(..., min_length=10, max_length=10)
-    hora: str = Field(..., min_length=5, max_length=5)
-    motivo: str = Field(..., min_length=2, max_length=200)
-    estado: Literal["programada","atendida"] = "programada"
+    id: int = Field(..., gt=0,description="Identificador de usuario", example=1)
+    paciente: str = Field(..., min_length=2, max_length=100, description="Nombre del paciente", example="Osvaldo")
+    doctor: str = Field(..., min_length=2, max_length=100,description="Nombre del Medico", example="Saul Silva")
+    especialidad: str = Field(..., min_length=2, max_length=100,description="Nombre de la Especialidad", example="Psiquiatra")
+    fecha: str = Field(..., min_length=10, max_length=10,description="Fecha", example="2026-03-16")
+    hora: str = Field(..., min_length=5, max_length=5,description="Hora", example="11:30")
+    motivo: str = Field(..., min_length=2, max_length=200,description="Motivo", example="Revision de piel")
+    estado: Literal["confirmada","atendida"] = "programada"
 
 
 @app.get("/", tags=["Inicio"])
@@ -157,15 +157,14 @@ async def atender_cita(id: int):
     )
 
 
-@app.delete("/v1/citas/{id}", tags=["CRUD Citas"])
-async def eliminar_cita(id: int):
+@app.delete("/v1/citas/{id}/eliminar", tags=["CRUD Citas"])
+async def eliminar_cita(id: int,usuario_auth: str = Depends(verificar_peticion)):
     for index, c in enumerate(citas):
-        if c["id"] == id:
-            citas.pop(index)
+        if ["id"] == id:
+            cita_eliminada = citas.pop(index)
             return {
-                "mensaje": "Cita eliminada correctamente",
-                "id_eliminado": id,
-                "status": "200"
+                "mensaje": f"Usuario eliminado correctamente por {usuario_auth}",
+                "data": cita_eliminada
             }
 
     raise HTTPException(
