@@ -1,17 +1,14 @@
 from fastapi import FastAPI, status, HTTPException, Depends
-from pydantic import BaseModel, Field
-from typing import Literal
-import secrets
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-from typing import Optional
-from fastapi import FastAPI, status, HTTPException, Depends
-import asyncio
-
+from pydantic import BaseModel, Field, field_validator
+from datetime import date
+import secrets
 
 app = FastAPI(
     title="API de Gestion de Citas Medicas",
     version="1.0"
 )
+
 citas = [
     {
         "id": 1,
@@ -19,9 +16,7 @@ citas = [
         "doctor": "Dr. Ramirez",
         "especialidad": "Cardiologia",
         "fecha": "2026-03-15",
-        "hora": "09:00",
-        "motivo": "Chequeo general",
-        "estado": "programada"
+        "motivo": "Chequeo general"
     },
     {
         "id": 2,
@@ -29,17 +24,14 @@ citas = [
         "doctor": "Dra. Martinez",
         "especialidad": "Dermatología",
         "fecha": "2026-03-16",
-        "hora": "11:30",
-        "motivo": "Revisión de piel",
-        "estado": "programada"
+        "motivo": "Revisión de piel"
     }
 ]
 
 security = HTTPBasic()
 
-
 def verificar_peticion(credentials: HTTPBasicCredentials = Depends(security)):
-    usuario_auth = secrets.compare_digest(credentials.username, "vichdz")
+    usuario_auth = secrets.compare_digest(credentials.username, "root")
     contra_auth = secrets.compare_digest(credentials.password, "1234")
 
     if not (usuario_auth and contra_auth):
@@ -50,16 +42,23 @@ def verificar_peticion(credentials: HTTPBasicCredentials = Depends(security)):
 
     return credentials.username
 
-
 class CitaBase(BaseModel):
-    id: int = Field(..., gt=0,description="Identificador de usuario", example=1)
+    id: int = Field(..., gt=0, description="Identificador de la cita", example=1)
     paciente: str = Field(..., min_length=2, max_length=100, description="Nombre del paciente", example="Osvaldo")
-    doctor: str = Field(..., min_length=2, max_length=100,description="Nombre del Medico", example="Saul Silva")
-    especialidad: str = Field(..., min_length=2, max_length=100,description="Nombre de la Especialidad", example="Psiquiatra")
-    fecha: str = Field(..., min_length=10, max_length=10,description="Fecha", example="2026-03-16")
-    hora: str = Field(..., min_length=5, max_length=5,description="Hora", example="11:30")
-    motivo: str = Field(..., min_length=2, max_length=200,description="Motivo", example="Revision de piel")
-    estado: Literal["confirmada","atendida"] = "programada"
+    doctor: str = Field(..., min_length=2, max_length=100, description="Nombre del Medico", example="Saul Silva")
+    especialidad: str = Field(..., min_length=2, max_length=100, description="Nombre de la Especialidad", example="Psiquiatra")
+    fecha: date = Field(..., description="Fecha de la cita en formato YYYY-MM-DD", example="2026-03-16")
+    motivo: str = Field(..., min_length=2, max_length=200, description="Motivo", example="Revision de piel")
+
+    @field_validator("fecha")
+    @classmethod
+    def validar_fecha(cls, value: date):
+        if value < date.today():
+            raise ValueError("La fecha no puede ser menor a la actual")
+        return value
+
+class ConfirmarCita(BaseModel):
+    confirmada: bool = Field(..., description="Estado de confirmación", example=True)
 
 
 @app.get("/", tags=["Inicio"])
@@ -68,15 +67,30 @@ async def inicio():
 
 
 @app.get("/v1/citas/", tags=["CRUD Citas"])
-async def listar_citas():
+async def listar_citas(usuario: str = Depends(verificar_peticion)): 
     return {
         "status": "200",
+        "usuario": usuario,
         "total": len(citas),
         "data": citas
     }
 
 
-@app.post("/v1/citas/", tags=["CRUD Citas"])
+@app.get("/v1/citas/{id}/consulta", tags=["CRUD Citas"])
+async def consultar_cita_por_id(id: int):
+    for c in citas:
+        if c["id"] == id:
+            return {
+                "status": 200,
+                "data": c
+            }
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Cita con id {id} no encontrada"
+    )
+
+
+@app.post("/v1/citas/", tags=["CRUD Citas"], status_code=status.HTTP_201_CREATED)
 async def registrar_cita(cita: CitaBase):
     for c in citas:
         if c["id"] == cita.id:
@@ -87,83 +101,59 @@ async def registrar_cita(cita: CitaBase):
 
         if (
             c["doctor"].lower() == cita.doctor.lower()
-            and c["fecha"] == cita.fecha
-            and c["hora"] == cita.hora
-            and c["estado"] == "programada"
+            and c["fecha"] == str(cita.fecha)
         ):
             raise HTTPException(
                 status_code=409,
-                detail="El doctor ya tiene una cita programada en esa fecha y hora"
+                detail="El doctor ya tiene una cita programada en esa fecha"
             )
 
-    citas.append(cita.model_dump())
+    citas_mismo_paciente_mismo_dia = 0
+    for c in citas:
+        if c["paciente"].lower() == cita.paciente.lower() and c["fecha"] == str(cita.fecha):
+            citas_mismo_paciente_mismo_dia += 1
+
+    if citas_mismo_paciente_mismo_dia >= 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No se permiten más de 3 citas en un día por paciente"
+        )
+
+    nueva_cita = cita.model_dump()
+    nueva_cita["fecha"] = str(nueva_cita["fecha"])
+    citas.append(nueva_cita)
 
     return {
-        "mensaje": "Cita registrada correctamente",
-        "datos": cita,
+        "mensaje": "Cita confirmada exitosamente",
+        "datos": nueva_cita,
         "status": "201"
     }
 
 
-@app.put("/v1/citas/{id}/cancelar", tags=["CRUD Citas"])
-async def cancelar_cita(id: int):
-    for index, c in enumerate(citas):
+@app.put("/v1/citas/{id}/confirmar", tags=["CRUD Citas"])
+async def confirmar_cita(id: int, datos_confirmacion: ConfirmarCita):
+    for idx, c in enumerate(citas):
         if c["id"] == id:
-            if c["estado"] == "cancelada":
-                raise HTTPException(
-                    status_code=409,
-                    detail="La cita ya está cancelada"
-                )
-
-            citas[index]["estado"] = "cancelada"
-
+            citas[idx]["confirmada"] = datos_confirmacion.confirmada
             return {
-                "mensaje": "Cita cancelada correctamente",
-                "status": "200"
+                "mensaje": "Estado de confirmación actualizado correctamente",
+                "datos": citas[idx],
+                "status": 200
             }
 
     raise HTTPException(
-        status_code=404,
-        detail="La cita no existe"
-    )
-
-
-@app.put("/v1/citas/{id}/atender", tags=["CRUD Citas"])
-async def atender_cita(id: int):
-    for index, c in enumerate(citas):
-        if c["id"] == id:
-            if c["estado"] == "atendida":
-                raise HTTPException(
-                    status_code=409,
-                    detail="La cita ya fue atendida"
-                )
-
-            if c["estado"] == "cancelada":
-                raise HTTPException(
-                    status_code=409,
-                    detail="No se puede atender una cita cancelada"
-                )
-
-            citas[index]["estado"] = "atendida"
-
-            return {
-                "mensaje": "Cita marcada como atendida",
-                "status": "200"
-            }
-
-    raise HTTPException(
-        status_code=404,
-        detail="La cita no existe"
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Cita con id {id} no encontrada"
     )
 
 
 @app.delete("/v1/citas/{id}/eliminar", tags=["CRUD Citas"])
-async def eliminar_cita(id: int,usuario_auth: str = Depends(verificar_peticion)):
+async def eliminar_cita(id: int, usuario_auth: str = Depends(verificar_peticion)):
     for index, c in enumerate(citas):
-        if ["id"] == id:
+        if c["id"] == id: 
             cita_eliminada = citas.pop(index)
             return {
-                "mensaje": f"Usuario eliminado correctamente por {usuario_auth}",
+                "mensaje": f"Cita eliminada correctamente por {usuario_auth}",
                 "data": cita_eliminada
             }
 

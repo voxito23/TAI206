@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biblioteca</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
+</head>
+<body>
+    <h1>Sistema de Biblioteca</h1>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if mensaje %}
+        <p class="mensaje">{{ mensaje }}</p>
+    {% endif %}
+
+    <h2>Agregar libro</h2>
+    <form action="/agregar_libro" method="POST">
+        <label>ID:</label>
+        <input type="number" name="id" required>
+        <br>
+
+        <label>Nombre:</label>
+        <input type="text" name="nombre" required>
+        <br>
+
+        <label>Año de publicación:</label>
+        <input type="number" name="anio_publicacion" required>
+        <br>
+
+        <label>Páginas:</label>
+        <input type="number" name="paginas" required>
+        <br>
+
+        <label>Estado:</label>
+        <select name="estado" required>
+            <option value="disponible">disponible</option>
+            <option value="prestado">prestado</option>
+        </select>
+        <br><br>
+
+        <button type="submit">Agregar libro</button>
+    </form>
+
+    <hr>
+
+    <h2>Buscar libro</h2>
+    <form action="/buscar_libro" method="GET">
+        <label>Nombre:</label>
+        <input type="text" name="nombre" value="{{ busqueda }}">
+        <button type="submit">Buscar</button>
+    </form>
+
+    <hr>
+
+    <h2>Registrar préstamo</h2>
+    <form action="/registrar_prestamo" method="POST">
+        <label>ID préstamo:</label>
+        <input type="number" name="id_prestamo" required>
+        <br>
+
+        <label>ID libro:</label>
+        <input type="number" name="id_libro" required>
+        <br>
+
+        <label>Nombre usuario:</label>
+        <input type="text" name="usuario_nombre" required>
+        <br>
+
+        <label>Correo usuario:</label>
+        <input type="email" name="usuario_correo" required>
+        <br><br>
+
+        <button type="submit">Registrar préstamo</button>
+    </form>
+
+    <hr>
+
+    <h2>Libros</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Año</th>
+                <th>Páginas</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for libro in libros %}
+            <tr>
+                <td>{{ libro.id }}</td>
+                <td>{{ libro.nombre }}</td>
+                <td>{{ libro.anio_publicacion }}</td>
+                <td>{{ libro.paginas }}</td>
+                <td>{{ libro.estado }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5">No hay libros registrados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Préstamos</h2>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>ID préstamo</th>
+                <th>ID libro</th>
+                <th>Usuario</th>
+                <th>Correo</th>
+                <th>Estado préstamo</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for prestamo in prestamos %}
+            <tr>
+                <td>{{ prestamo.id_prestamo }}</td>
+                <td>{{ prestamo.id_libro }}</td>
+                <td>{{ prestamo.usuario.nombre }}</td>
+                <td>{{ prestamo.usuario.correo }}</td>
+                <td>{{ prestamo.estado_prestamo }}</td>
+                <td>
+                    <form action="/devolver_prestamo" method="POST" style="display:inline;">
+                        <input type="hidden" name="id_prestamo" value="{{ prestamo.id_prestamo }}">
+                        <button type="submit">Devolver</button>
+                    </form>
+
+                    <form action="/eliminar_prestamo" method="POST" style="display:inline;">
+                        <input type="hidden" name="id_prestamo" value="{{ prestamo.id_prestamo }}">
+                        <button type="submit">Eliminar</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6">No hay préstamos registrados.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

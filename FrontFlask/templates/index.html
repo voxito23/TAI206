@@ -3,20 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <title>Usuarios Simple</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/estilos.css') }}">
 </head>
 <body>
 
     <h2>Agregar Usuario</h2>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
     
     <form action="/agregar" method="post">
         <label>ID:</label>
-        <input type="number" name="id" required size="5">
+        <input type="number" name="id" required min="1" size="5">
         
         <label>Nombre:</label>
-        <input type="text" name="nombre" required>
+        <input type="text" name="nombre" required minlength="3" maxlength="50">
         
         <label>Edad:</label>
-        <input type="number" name="edad" required size="5">
+        <input type="number" name="edad" required min="0" max="121" size="5">
         
         <button type="submit">Agregar</button>
     </form>
@@ -27,7 +32,8 @@
 
     <table border="1" cellpadding="5" cellspacing="0">
         <thead>
-            <tr style="background-color: #eee;"> <th>ID</th>
+            <tr>
+                <th>ID</th>
                 <th>Nombre</th>
                 <th>Edad</th>
                 <th>Acción</th>
@@ -40,7 +46,9 @@
                 <td>{{ usuario.nombre }}</td>
                 <td>{{ usuario.edad }}</td>
                 <td>
-                    <a href="/eliminar/{{ usuario.id }}" style="color: red;">Eliminar</a>
+                    <form action="/eliminar/{{ usuario.id }}" method="post" style="display:inline;">
+                        <button type="submit">Eliminar</button>
+                    </form>
                 </td>
             </tr>
             {% else %}

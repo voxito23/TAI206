@@ -174,3 +174,9 @@ async def eliminar_usuario(id: int, usuario_actual: str = Depends(get_current_us
         status_code=404, 
         detail="Usuario no encontrado"
         )
+    
+    #except Exception as e: → guarda el error en e
+
+    #f"..." → permite meter e dentro del texto
+
+    ##{e} → muestra el mensaje del error

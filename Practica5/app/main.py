@@ -9,13 +9,72 @@ app = FastAPI(
     version='1.0'
 )
 
-libros = []
-prestamos = []
-
 CURRENT_YEAR = datetime.now().year
 
+# BD ficticia
+libros = [
+    {
+        "id": 1,
+        "nombre": "Cien años de soledad",
+        "anio_publicacion": 1967,
+        "paginas": 471,
+        "estado": "prestado"
+    },
+    {
+        "id": 2,
+        "nombre": "Don Quijote de la Mancha",
+        "anio_publicacion": 1605,
+        "paginas": 863,
+        "estado": "disponible"
+    },
+    {
+        "id": 3,
+        "nombre": "El principito",
+        "anio_publicacion": 1943,
+        "paginas": 96,
+        "estado": "prestado"
+    },
+    {
+        "id": 4,
+        "nombre": "1984",
+        "anio_publicacion": 1949,
+        "paginas": 328,
+        "estado": "disponible"
+    }
+]
+
+prestamos = [
+    {
+        "id_prestamo": 1,
+        "id_libro": 1,
+        "usuario": {
+            "nombre": "Victor Rodriguez",
+            "correo": "victorrodher493@gmail.com"
+        },
+        "estado_prestamo": "activo"
+    },
+    {
+        "id_prestamo": 2,
+        "id_libro": 3,
+        "usuario": {
+            "nombre": "Mauricio Lopez",
+            "correo": "mauricio@gmail.com"
+        },
+        "estado_prestamo": "activo"
+    },
+    {
+        "id_prestamo": 3,
+        "id_libro": 2,
+        "usuario": {
+            "nombre": "Luis Perez",
+            "correo": "luis@gmail.com"
+        },
+        "estado_prestamo": "devuelto"
+    }
+]
+
 class UsuarioBase(BaseModel):
-    nombre: str = Field(..., min_length=2, max_length=50, description="Nombre del usuario", example="Victor") 
+    nombre: str = Field(..., min_length=2, max_length=50, description="Nombre del usuario", example="Victor")
     correo: EmailStr = Field(..., description="Correo electrónico valido", example="victorrodher493@gmail.com")
 
 class LibroBase(BaseModel):
@@ -24,7 +83,7 @@ class LibroBase(BaseModel):
     anio_publicacion: int = Field(..., gt=1450, le=CURRENT_YEAR, description="Año de publicación validado", example=2016)
     paginas: int = Field(..., gt=1, description="Número de páginas validado", example=320)
     estado: Literal["disponible", "prestado"] = Field(default="disponible", description="Estado del libro", example="disponible")
-    
+
 class PrestamoBase(BaseModel):
     id_prestamo: int = Field(..., gt=0, description="Identificador del préstamo", example=1)
     id_libro: int = Field(..., gt=0, description="Identificador del libro a prestar", example=1)
@@ -35,17 +94,25 @@ class PrestamoBase(BaseModel):
 async def holamundo():
     return {"mensaje": "API de Biblioteca - Activa"}
 
+@app.get("/v1/libros/", tags=['CRUD Libros'])
+async def listar_libros():
+    return {
+        "status": "200",
+        "total": len(libros),
+        "data": libros
+    }
+
 @app.post("/v1/libros/", tags=['CRUD Libros'])
 async def registrar_libro(libro: LibroBase):
     for lib in libros:
         if lib["id"] == libro.id:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail="El ID del libro ya existe"
             )
-    
-    libros.append(libro.model_dump()) 
-    
+
+    libros.append(libro.model_dump())
+
     return {
         "mensaje": "Libro agregado",
         "datos": libro,
@@ -70,6 +137,14 @@ async def buscar_libro(nombre: str):
         "data": encontrados
     }
 
+@app.get("/v1/prestamos/", tags=['CRUD Prestamos'])
+async def listar_prestamos():
+    return {
+        "status": "200",
+        "total": len(prestamos),
+        "data": prestamos
+    }
+
 @app.post("/v1/prestamos/", tags=['CRUD Prestamos'])
 async def registrar_prestamo(prestamo: PrestamoBase):
     libro_encontrado = None
@@ -77,32 +152,32 @@ async def registrar_prestamo(prestamo: PrestamoBase):
         if lib["id"] == prestamo.id_libro:
             libro_encontrado = lib
             break
-            
+
     if not libro_encontrado:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="El libro no existe"
         )
-        
+
     if libro_encontrado["estado"] == "prestado":
         raise HTTPException(
-            status_code=409, 
+            status_code=409,
             detail="El libro ya está prestado"
         )
 
     for p in prestamos:
         if p["id_prestamo"] == prestamo.id_prestamo:
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail="El ID del préstamo ya existe"
             )
 
     nuevo_prestamo = prestamo.model_dump()
     nuevo_prestamo["estado_prestamo"] = "activo"
     prestamos.append(nuevo_prestamo)
-    
+
     libro_encontrado["estado"] = "prestado"
-    
+
     return {
         "mensaje": "Préstamo registrado",
         "datos": nuevo_prestamo,
@@ -115,24 +190,24 @@ async def devolver_libro(id_prestamo: int):
         if p["id_prestamo"] == id_prestamo:
             if p["estado_prestamo"] == "devuelto":
                 raise HTTPException(
-                    status_code=409, 
+                    status_code=409,
                     detail="El libro ya fue devuelto"
                 )
-                
+
             prestamos[index]["estado_prestamo"] = "devuelto"
-            
+
             for lib in libros:
                 if lib["id"] == p["id_libro"]:
                     lib["estado"] = "disponible"
                     break
-                    
+
             return {
-                "mensaje": "Libro devuelto con éxito", 
+                "mensaje": "Libro devuelto con éxito",
                 "status": "200"
             }
-            
+
     raise HTTPException(
-        status_code=409, 
+        status_code=409,
         detail="El registro de préstamo activo no existe"
     )
 
@@ -145,15 +220,15 @@ async def eliminar_prestamo(id_prestamo: int):
                     if lib["id"] == p["id_libro"]:
                         lib["estado"] = "disponible"
                         break
-                        
+
             prestamos.pop(index)
             return {
                 "mensaje": "Registro de préstamo eliminado",
                 "id_eliminado": id_prestamo,
                 "status": "200"
             }
-            
+
     raise HTTPException(
-        status_code=409, 
+        status_code=409,
         detail="El registro de préstamo ya no existe"
     )
